@@ -1,0 +1,43 @@
+{
+  "kind": "collectionType",
+  "collectionName": "group_members",
+  "info": {
+    "singularName": "group-member",
+    "pluralName": "group-members",
+    "displayName": "GroupMember",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "group": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::group.group"
+    },
+    "user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "pending",
+        "accepted",
+        "rejected"
+      ],
+      "default": "pending"
+    },
+    "role": {
+      "type": "enumeration",
+      "enum": [
+        "base",
+        "admin"
+      ],
+      "default": "base"
+    }
+  }
+}
