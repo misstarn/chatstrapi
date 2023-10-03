@@ -14,13 +14,38 @@
   "attributes": {
     "user_group": {
       "type": "relation",
-      "relation": "oneToOne",
-      "target": "api::user-group.user-group"
+      "relation": "manyToOne",
+      "target": "api::user-group.user-group",
+      "inversedBy": "user_group_members"
     },
     "user": {
       "type": "relation",
       "relation": "oneToOne",
       "target": "plugin::users-permissions.user"
+    },
+    "friendship": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::friendship.friendship",
+      "inversedBy": "user_group_members"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "pending",
+        "accepted",
+        "rejected"
+      ],
+      "default": "pending"
+    },
+    "messages": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::message.message",
+      "mappedBy": "user_group_member"
+    },
+    "fs": {
+      "type": "string"
     }
   }
 }

@@ -21,8 +21,11 @@
       "relation": "oneToOne",
       "target": "plugin::users-permissions.user"
     },
-    "groupname": {
-      "type": "string"
+    "user_group_members": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::user-group-member.user-group-member",
+      "mappedBy": "user_group"
     }
   }
 }

@@ -42,6 +42,18 @@
     "uid": {
       "type": "uid",
       "minLength": 8
+    },
+    "group_members": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::group-member.group-member",
+      "mappedBy": "group"
+    },
+    "admin_group_members": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::group-member.group-member",
+      "mappedBy": "admin_group"
     }
   }
 }

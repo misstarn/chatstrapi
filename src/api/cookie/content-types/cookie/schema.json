@@ -1,0 +1,28 @@
+{
+  "kind": "collectionType",
+  "collectionName": "cookies",
+  "info": {
+    "singularName": "cookie",
+    "pluralName": "cookies",
+    "displayName": "Cookies"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "i18n": {
+      "localized": true
+    },
+    "content-manager": {
+      "visible": false
+    }
+  },
+  "attributes": {
+    "category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::cookie-category.cookie-category",
+      "inversedBy": "cookies"
+    }
+  }
+}

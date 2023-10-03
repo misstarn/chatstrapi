@@ -14,8 +14,9 @@
   "attributes": {
     "group": {
       "type": "relation",
-      "relation": "oneToOne",
-      "target": "api::group.group"
+      "relation": "manyToOne",
+      "target": "api::group.group",
+      "inversedBy": "group_members"
     },
     "user": {
       "type": "relation",
@@ -38,6 +39,23 @@
         "admin"
       ],
       "default": "base"
+    },
+    "messages": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::message.message",
+      "mappedBy": "group_member"
+    },
+    "operator": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "admin_group": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::group.group",
+      "inversedBy": "admin_group_members"
     }
   }
 }

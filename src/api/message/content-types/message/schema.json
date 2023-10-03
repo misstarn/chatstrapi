@@ -21,26 +21,79 @@
       "relation": "oneToOne",
       "target": "plugin::users-permissions.user"
     },
-    "receiver": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "plugin::users-permissions.user"
-    },
     "isGroupMessage": {
       "type": "boolean",
       "default": false
-    },
-    "group": {
-      "type": "relation",
-      "relation": "oneToOne",
-      "target": "api::group.group"
     },
     "isRead": {
       "type": "boolean",
       "default": false
     },
     "friendship": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::friendship.friendship",
+      "inversedBy": "messages"
+    },
+    "type": {
+      "type": "enumeration",
+      "enum": [
+        "message",
+        "note",
+        "image",
+        "file"
+      ]
+    },
+    "group_member": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::group-member.group-member",
+      "inversedBy": "messages"
+    },
+    "receiver": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "fs": {
+      "type": "string",
+      "required": false
+    },
+    "gm": {
+      "type": "string",
+      "required": false
+    },
+    "group": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::group.group"
+    },
+    "user_group_member": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::user-group-member.user-group-member",
+      "inversedBy": "messages"
+    },
+    "status": {
+      "type": "enumeration",
+      "enum": [
+        "pending",
+        "accepted",
+        "rejected"
+      ],
+      "default": "pending"
+    },
+    "fileName": {
       "type": "string"
+    },
+    "fileId": {
+      "type": "biginteger"
+    },
+    "jwk_key": {
+      "type": "text"
+    },
+    "iv": {
+      "type": "text"
     }
   }
 }

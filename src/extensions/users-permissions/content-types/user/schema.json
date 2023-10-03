@@ -105,6 +105,12 @@
     },
     "region": {
       "type": "string"
+    },
+    "friendships": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::friendship.friendship",
+      "inversedBy": "users"
     }
   }
 }

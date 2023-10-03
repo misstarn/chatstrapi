@@ -6,7 +6,14 @@ module.exports = [
   'strapi::logger',
   'strapi::query',
   'strapi::body',
-  'strapi::session',
+  {
+    name: 'strapi::session',
+    config: {
+      rolling: true,
+      httpOnly: true,
+      renew: true
+    },
+  },
   'strapi::favicon',
   'strapi::public',
 ];

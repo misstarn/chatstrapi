@@ -31,6 +31,29 @@
       ],
       "default": "pending",
       "required": false
+    },
+    "messages": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::message.message",
+      "mappedBy": "friendship"
+    },
+    "user_group_members": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::user-group-member.user-group-member",
+      "mappedBy": "friendship"
+    },
+    "operator": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    },
+    "users": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "plugin::users-permissions.user",
+      "mappedBy": "friendships"
     }
   }
 }
