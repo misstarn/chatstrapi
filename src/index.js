@@ -25,7 +25,7 @@ module.exports = {
     const io = new Server(httpServer, {
       // options
       cors: {
-        origin: "http://localhost:3000",
+        origin: ["http://localhost:3000",'https://www.anran.life']
         // or with an array of origins
         // origin: ["https://my-frontend.com", "https://my-other-frontend.com", "http://localhost:3000"],
         // credentials: true
@@ -341,7 +341,7 @@ module.exports = {
                 io.to(targetSocketId).emit('receivePrivateMessage', {
                   user: {
                     id: socket.user.id,
-                    uid: socket.user.uid,
+                    uid: targetUser.uid,
                     username: socket.user.username,
                     name: socket.user.name,
                     avatar: socket.user.avatar
