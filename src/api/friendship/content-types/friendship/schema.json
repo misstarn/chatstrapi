@@ -27,7 +27,8 @@
       "enum": [
         "pending",
         "accepted",
-        "rejected"
+        "rejected",
+        "delete"
       ],
       "default": "pending",
       "required": false

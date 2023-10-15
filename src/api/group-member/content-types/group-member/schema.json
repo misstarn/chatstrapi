@@ -28,7 +28,8 @@
       "enum": [
         "pending",
         "accepted",
-        "rejected"
+        "rejected",
+        "delete"
       ],
       "default": "pending"
     },
@@ -56,6 +57,9 @@
       "relation": "manyToOne",
       "target": "api::group.group",
       "inversedBy": "admin_group_members"
+    },
+    "offlineMessages": {
+      "type": "integer"
     }
   }
 }

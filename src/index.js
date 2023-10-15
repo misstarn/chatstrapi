@@ -25,7 +25,7 @@ module.exports = {
     const io = new Server(httpServer, {
       // options
       cors: {
-        origin: ["http://localhost:3000",'https://www.anran.life']
+        origin: ["https://chat.anran.life", "https://www.anran.life", "http://127.0.0.1:3000"],
         // or with an array of origins
         // origin: ["https://my-frontend.com", "https://my-other-frontend.com", "http://localhost:3000"],
         // credentials: true
@@ -33,7 +33,7 @@ module.exports = {
     });
 
 
-    // // 用户列表Map
+    // 用户列表Map
     const userSocketMap = {}
     let userInfo = {}
 
@@ -45,7 +45,7 @@ module.exports = {
 
       // 断开连接
       socket.on('disconnect', async () => {
-        // console.log('user disconnected');
+        console.log('user disconnected');
         // 账号下线
         if (socket.user) {
 
@@ -58,8 +58,33 @@ module.exports = {
 
           // console.log(entry)
 
-          io.emit('offline', socket.user.username)
+          io.emit('offline', socket.user.uid)
 
+          // 退出所有群聊
+          const groups = await strapi.entityService.findMany('api::group-member.group-member', {
+            filters: {
+              user: {
+                id: socket.user.id
+              },
+              status: 'accepted'
+            },
+            populate: {
+              group: true
+            }
+
+          })
+          // console.log(groups, '123')
+
+          // 从房间中移除用户，断开群聊
+          groups.forEach(g => {
+            socket.leave(g.group.uid)
+          });
+        }
+
+        // 添加用户到列表
+        userSocketMap[socket.user.username] = {
+          id: socket.id,
+          online: false
         }
       });
 
@@ -104,21 +129,66 @@ module.exports = {
             fields: userFilter,
           });
 
-          // console.log(entry)
+          // 添加用户到列表
+          userSocketMap[user.username] = {
+            id: socket.id,
+            online: true
+          }
+
+          // 加入所有群组
+          const groups = await strapi.entityService.findMany('api::group-member.group-member', {
+            filters: {
+              user: {
+                id: socket.user.id
+              },
+              status: 'accepted'
+            },
+            populate: {
+              group: true
+            }
+          })
+          // console.log(groups, '123')
+
+          // 加入群组，只加入一次，不能再重复加入，不然会造成重复消息
+          groups.forEach(g => {
+            socket.join(g.group.uid)
+          });
+
+          // 加入所有群组，返回所有群组
+          await getGroups(socket.user)
+
+          // 返回 所有用户
+          await getUsers(socket.user)
+
+
+          // 登录之后 获取未读消息
+          const offlineMessages = await getMsg(socket.user)
+
+
+          // 返回 离线消息记录
+          io.to(socket.id).emit('offlineMessages', offlineMessages)
+
+          // 删除
+          for (let i = 0; i < offlineMessages.length; i++) {
+            // 群消息修改离线数
+            if (offlineMessages[i].isGroupMessage) {
+              // 非群消息不做修改
+            } else { //私聊消息删除
+              const entry = await strapi.entityService.delete('api::message.message', offlineMessages[i].id);
+              // console.log(entry)
+            }
+          }
 
           if (entry) {
             // 更新之后返回该用户的群组信息
             io.emit('online', {
-              username: entry.username
+              uid: entry.uid
             })
 
             socket.user = entry
 
             io.to(socket.id).emit('userInfo', entry)
           }
-
-          // 添加用户到列表
-          userSocketMap[user.username] = socket.id
 
         }
 
@@ -140,6 +210,7 @@ module.exports = {
               id: user.id
             },
           },
+          sort: ['createdAt:DESC'],
           populate: {
             user_group_members: {
               filters: {
@@ -161,11 +232,10 @@ module.exports = {
               }
             }
           },
-          sort: { createdAt: 'ASC' },
         });
 
         // 返回用户列表 用户组和用户
-        const targetSocketId = userSocketMap[user.username]
+        const targetSocketId = userSocketMap[user.username].id
         io.to(targetSocketId).emit("userGroup", userGroups);
       }
 
@@ -186,6 +256,7 @@ module.exports = {
             },
             status: 'accepted'
           },
+          sort: ['createdAt:DESC'],
           populate: {
             group: {
               populate: {
@@ -219,13 +290,8 @@ module.exports = {
           }
         })
 
-        // console.log(groups, '123')
 
-        groups.forEach(g => {
-          socket.join(g.group.uid)
-        });
-
-        const targetSocketId = userSocketMap[user.username]
+        const targetSocketId = userSocketMap[user.username]?.id
 
         io.to(targetSocketId).emit('groups', groups)
       }
@@ -243,218 +309,391 @@ module.exports = {
       })
 
       // 接收私聊
-      socket.on('privateMessage', ({ targetUser, message, type, fileName, fileId, key, iv }) => {
+      socket.on('privateMessage', async ({ targetUser, message, type, fileName, fileId, key, iv }) => {
         if (socket.user) {
-          strapi.log.info(key)
+          console.log('接收')
           strapi.log.info(targetUser)
           strapi.log.info(message)
-          strapi.log.info(userSocketMap[targetUser.username])
+          strapi.log.info(JSON.stringify(userSocketMap))
+
+          const createdAt = new Date()
 
           if (targetUser.tab == 'groups') {
-            // 存储
-            strapi.entityService.create('api::message.message', {
-              data: {
-                "content": message,
-                "sender": socket.user.id,
-                "isGroupMessage": true,
-                group: targetUser.id,
-                type: type,
-                jwk_key: key,
-                iv: iv,
-                fileName: fileName,
-                fileId: fileId,
-                status: 'accepted',
-                group_member: targetUser.group_member,
-                gm: `${targetUser.id}${socket.user.id}`,
+
+
+
+            // 查找群成员
+            const entries = await strapi.entityService.findMany('api::group-member.group-member', {
+              filters: {
+                group: {
+                  id: targetUser.id,
+                },
               },
-            }).then(res => {
-              // 发给特定房间
+              populate: {
+                user: {
+                  fields: ['online', 'id'],
+                },
+              }
+            });
+
+            let me = false
+
+            // 是否存在
+            for (let i = 0; i < entries.length; i++) {
+
+              if (entries[i].user.id == socket.user.id) {
+                me = true
+              }
+            }
+
+            // 存在才操作
+            if (me) {
+              // 循环，如果不在线就加1
+              for (let i = 0; i < entries.length; i++) {
+
+                if (entries[i].user.id == socket.user.id) {
+                  me = true
+                }
+                // console.log(entries[i])
+                let count = 0
+                if (!entries[i].user.online) {
+                  // 未读条数
+                  count = entries[i].offlineMessages + 1
+                  // 群关系id
+                  const id = entries[i].id
+                  // 最多五百条
+                  if (count < 800) {
+                    const entry = await strapi.entityService.update('api::group-member.group-member', id, {
+                      data: {
+                        offlineMessages: count,
+                      },
+                    });
+
+                    // console.log(entry)
+                  }
+                }
+              }
+
+              // 存储
+              strapi.entityService.create('api::message.message', {
+                data: {
+                  "content": message,
+                  "sender": socket.user.id,
+                  "isGroupMessage": true,
+                  group: targetUser.id,
+                  type: type,
+                  jwk_key: key,
+                  iv: iv,
+                  fileName: fileName,
+                  fileId: fileId,
+                  status: 'accepted',
+                  group_member: targetUser.group_member,
+                  gm: `${targetUser.id}${socket.user.id}`,
+                },
+              }).then(res => {
+                // 发给特定房间
+                const send = {
+                  ...targetUser,
+                  avatar: socket.user.avatar
+                }
+                // console.log(send, '123')
+                send.name = socket.user.name
+                socket.to(targetUser.uid).except(socket.id).emit('receivePrivateMessage', {
+                  user: {
+                    id: send.id,
+                    groupname: send.groupname,
+                    name: send.name,
+                    uid: send.uid,
+                    avatar: send.avatar
+                  }, me: false, msg: {
+                    content: res.content,
+                    iv,
+                    fileName: res.fileName,
+                    isGroupMessage: res.isGroupMessage,
+                    jwk_key: res.jwk_key,
+                    createdAt: res.createdAt,
+                    type,
+                    success: true,
+                  }
+                })
+                // 发送给自己
+                if (type == 'message' || type == 'image') {
+                  io.to(socket.id).emit('receivePrivateMessage', {
+                    user: {
+                      id: send.id,
+                      uid: send.uid,
+                      groupname: send.groupname,
+                      name: send.name,
+                      avatar: send.avatar
+                    }, me: true, msg: {
+                      content: res.content,
+                      iv,
+                      fileName: fileName,
+                      isGroupMessage: res.isGroupMessage,
+                      jwk_key: res.jwk_key,
+                      createdAt: res.createdAt,
+                      type,
+                      success: true,
+                    }
+                  })
+                }
+              });
+            } else { //不存在
+              // 发送回去
               const send = {
                 ...targetUser,
                 avatar: socket.user.avatar
               }
-              // console.log(send, '123')
-              send.name = socket.user.name
-              socket.to(targetUser.uid).emit('receivePrivateMessage', {
+              io.to(socket.id).emit('receivePrivateMessage', {
                 user: {
                   id: send.id,
+                  uid: send.uid,
                   groupname: send.groupname,
                   name: send.name,
-                  uid: send.uid,
                   avatar: send.avatar
-                }, me: false, msg: {
-                  content: res.content,
+                }, me: true, msg: {
+                  content: message,
                   iv,
-                  fileName: res.fileName,
-                  isGroupMessage: res.isGroupMessage,
-                  jwk_key: res.jwk_key,
-                  createdAt: res.createdAt,
-                  type
+                  fileName: fileName,
+                  isGroupMessage: true,
+                  jwk_key: key,
+                  createdAt: new Date(),
+                  type,
+                  success: false,
                 }
               })
-              // 发送给自己
-              if (type == 'message') {
-                io.to(socket.id).emit('receivePrivateMessage', {
-                  user: {
-                    id: send.id,
-                    uid: send.uid,
-                    groupname: send.groupname,
-                    name: send.name,
-                    avatar: send.avatar
-                  }, me: true, msg: {
-                    content: res.content,
-                    iv,
-                    isGroupMessage: res.isGroupMessage,
-                    jwk_key: res.jwk_key,
-                    fileName: res.fileName,
-                    createdAt: res.createdAt,
-                    type
+            }
+
+          } else {
+            // 私信消息
+            // 查找是否已经有关系
+            const myId = socket.user.id
+            const id = targetUser.id
+            // const id = 8
+            const friendship = await strapi.db.query('api::friendship.friendship').findOne({
+              where: {
+                status: 'accepted',
+                $or: [
+                  {
+                    user1: {
+                      id: myId
+                    },
+                    user2: {
+                      id: id
+                    }
+                  },
+                  {
+                    user1: {
+                      id: id
+                    },
+                    user2: {
+                      id: myId
+                    }
                   }
-                })
+                ],
+              },
+              orderBy: { createdAt: 'DESC' },
+              populate: {
+                user_group_members: true,
               }
             });
 
-
-          } else {
-            const targetSocketId = userSocketMap[targetUser.username]
-
-            // 并保存到数据库
-            strapi.entityService.create('api::message.message', {
-              data: {
-                "content": message,
-                "sender": socket.user.id,
-                fs: `${socket.user.id}${targetUser.id}`,
-                "receiver": targetUser.id,
-                type: type,
-                jwk_key: key,
-                iv: iv,
-                fileId: fileId,
-                fileName: fileName,
-                status: 'accepted',
-                friendship: targetUser.friendship.id,
-                "isRead": false
-              },
-            }).then(res => {
-              // 是否在线
-              if (targetSocketId && res.id) {
+            console.log(friendship)
+            // 存在关系才发送消息
+            if (friendship) {
+              const targetSocket = userSocketMap[targetUser.username]
+              const targetSocketId = targetSocket?.id
+              // console.log(targetSocketId, 'id')
+              if (targetSocketId && targetSocket?.online) {
                 // 发送到本地 特定用户
                 io.to(targetSocketId).emit('receivePrivateMessage', {
+                  user: {
+                    id: socket.user.id,
+                    uid: socket.user.uid,
+                    username: socket.user.username,
+                    name: socket.user.name,
+                    avatar: socket.user.avatar
+                  }, me: false, msg: {
+                    content: message,
+                    iv,
+                    fileName: fileName,
+                    isGroupMessage: false,
+                    createdAt: createdAt,
+                    type,
+                    success: true,
+                  },
+                })
+              } else {
+                // 离线信息，存储到服务器数据库
+                strapi.entityService.create('api::message.message', {
+                  data: {
+                    "content": message,
+                    "sender": socket.user.id,
+                    fs: `${socket.user.id}${targetUser.id}`,
+                    "receiver": targetUser.id,
+                    type: type,
+                    jwk_key: key,
+                    iv: iv,
+                    fileId: fileId,
+                    fileName: fileName,
+                    status: 'accepted',
+                    friendship: targetUser.friendship.id,
+                    "isRead": false
+                  },
+                })
+              }
+
+              if (type == 'message' || type == 'image') {
+                io.to(socket.id).emit('receivePrivateMessage', {
                   user: {
                     id: socket.user.id,
                     uid: targetUser.uid,
                     username: socket.user.username,
                     name: socket.user.name,
                     avatar: socket.user.avatar
-                  }, me: false, msg: {
-                    content: res.content,
-                    iv,
-                    fileName: res.fileName,
-                    isGroupMessage: res.isGroupMessage,
-                    createdAt: res.createdAt,
-                    type
-                  },
-                })
-              }
-              // 发送给自己
-              if (type == 'message') {
-                io.to(socket.id).emit('receivePrivateMessage', {
-                  user: {
-                    id: targetUser.id,
-                    uid: targetUser.uid,
-                    username: targetUser.username,
-                    name: targetUser.name,
-                    avatar: targetUser.avatar
                   }, me: true, msg: {
-                    content: res.content,
+                    content: message,
                     iv,
-                    fileName: res.fileName,
-                    isGroupMessage: res.isGroupMessage,
-                    createdAt: res.createdAt,
-                    type
+                    fileName: fileName,
+                    isGroupMessage: false,
+                    createdAt: createdAt,
+                    type,
+                    success: true,
                   }
                 })
               }
-            });
+            } else {
+              io.to(socket.id).emit('receivePrivateMessage', {
+                user: {
+                  id: socket.user.id,
+                  uid: targetUser.uid,
+                  username: socket.user.username,
+                  name: socket.user.name,
+                  avatar: socket.user.avatar
+                }, me: true, msg: {
+                  content: message,
+                  iv,
+                  fileName: fileName,
+                  isGroupMessage: false,
+                  createdAt: createdAt,
+                  type,
+                  success: false
+                }
+              })
+            }
+
           }
         }
       })
 
       // 获取消息记录
-      async function getMsg(targetUser, currentUser, start) {
+      async function getMsg(currentUser) {
         // console.log(start)
         // console.log(targetUser, currentUser)
         if (currentUser) {
-          if (targetUser.tab == 'friends') {
-            const msgs = await strapi.entityService.findMany('api::message.message', {
-              filters: {
-                friendship: {
-                  id: targetUser.friendship.id
+          const friendlists = await strapi.entityService.findMany('api::message.message', {
+            filters: {
+              receiver: {
+                id: currentUser.id
+              },
+              isRead: false
+            },
+            sort: {
+              createdAt: 'DESC',
+            },
+            // 查询深度
+            populate: {
+              sender: {
+                // 显示过滤
+                fields: userFilter,
+                populate: {
+                  avatar: {
+                    fields: ['url']
+                  }
                 }
               },
-              sort: {
-                createdAt: 'DESC',
-              },
-              start: start,
-              limit: 15,
-              // 查询深度
-              populate: {
-                sender: {
-                  // 显示过滤
-                  fields: userFilter,
-                  populate: {
-                    avatar: {
-                      fields: ['url']
-                    }
-                  }
-                },
-                receiver: {
-                  fields: userFilter,
-                  populate: {
-                    avatar: {
-                      fields: ['url']
-                    }
+              receiver: {
+                fields: userFilter,
+                populate: {
+                  avatar: {
+                    fields: ['url']
                   }
                 }
               }
+            }
 
-            });
-            // console.log(msgs)
-            return msgs
-          } else {
-            const msgs = await strapi.entityService.findMany('api::message.message', {
-              filters: {
-                group: {
-                  id: targetUser.id
-                },
-                isGroupMessage: true
+          });
+
+          // 群未读消息
+          // 所有群关系
+          const entries = await strapi.entityService.findMany('api::group-member.group-member', {
+            filters: {
+              user: {
+                id: currentUser.id,
               },
-              start: start,
-              limit: 15,
-              sort: { createdAt: 'DESC' },
-              // 查询深度
-              populate: {
-                sender: {
-                  // 显示过滤
-                  fields: userFilter,
-                  populate: {
-                    avatar: {
-                      fields: ['url']
-                    }
-                  }
+            },
+            populate: {
+              group: true
+            },
+          });
+
+          let groupsList = []
+
+          // 循环获取每个群的未读消息
+          for (let i = 0; i < entries.length; i++) {
+            // console.log(entries[i])
+            const count = entries[i].offlineMessages
+            // 离线未读》0
+            if (count > 0) {
+              // 获取消息列表
+              const grouplists = await strapi.entityService.findMany('api::message.message', {
+                filters: {
+                  group: {
+                    id: entries[i].group.id
+                  },
+                  isGroupMessage: true,
+                  isRead: false
                 },
-                receiver: {
-                  fields: userFilter,
-                  populate: {
-                    avatar: {
-                      fields: ['url']
+                start: 0,
+                limit: count,
+                sort: { createdAt: 'DESC' },
+                // 查询深度
+                populate: {
+                  group: {
+                    populate: {
+                      groupAvatar: {
+                        fields: ['url']
+                      }
+                    }
+                  },
+                  group_member: true,
+                  sender: {
+                    fields: userFilter,
+                    populate: {
+                      avatar: {
+                        fields: ['url']
+                      }
                     }
                   }
                 }
-              }
+              });
 
-            });
-            return msgs
+              // console.log(JSON.stringify(grouplists))
+              // 将单个群消息加入到列表
+              groupsList = [...groupsList, ...grouplists]
+
+              const id = entries[i].id
+              const entry = await strapi.entityService.update('api::group-member.group-member', id, {
+                data: {
+                  offlineMessages: 0,
+                },
+              });
+
+              // console.log(entry, '2222')
+            }
           }
+
+          return [...friendlists, ...groupsList]
         }
       }
 
@@ -476,23 +715,23 @@ module.exports = {
           // console.log(entry)
         }
 
-        const hisotry = await getMsg(targetUser, currentUser, start)
+        const hisotry = await getMsg(targetUser)
 
+        // 返回消息记录
+        io.to(socket.id).emit('historyMsgs', hisotry)
 
         // 再进行降序排序
         // hisotry.sort((a, b) => {
-        //   // 将 createdAt 字段解析为时间戳，然后进行比较
+        // 将 createdAt 字段解析为时间戳，然后进行比较
         //   const timeA = new Date(a.createdAt).getTime();
         //   const timeB = new Date(b.createdAt).getTime();
 
-        //   // 降序排序，时间最长的在前面
+        // 降序排序，时间最长的在前面
         //   return timeA - timeB;
         // })
 
 
-        // console.log(hisotry)
-        // 返回消息记录
-        io.to(socket.id).emit('historyMsgs', hisotry)
+
 
       })
 
@@ -652,7 +891,7 @@ module.exports = {
               })
 
               // 给对方发
-              const targetSocketId = userSocketMap[targetUser.username]
+              const targetSocketId = userSocketMap[targetUser.username].id
               io.to(targetSocketId).emit('userApply', {
                 user: socket.user, friendship: friendship, me: false, menu: false, message: res
               })
@@ -667,7 +906,7 @@ module.exports = {
             });
             // console.log(entry)
             if (entry) {
-              const targetSocketId = userSocketMap[targetUser.username]
+              const targetSocketId = userSocketMap[targetUser.username].id
               // 创建好友组关系
               await strapi.entityService.create('api::user-group-member.user-group-member', {
                 data: {
@@ -847,7 +1086,7 @@ module.exports = {
 
             }
 
-            // const targetSocketId = userSocketMap[targetUser.username]
+            // const targetSocketId = userSocketMap[targetUser.username].id
 
             // io.to(socket.id).emit('applyFriendEdit', sh)
             // io.to(targetSocketId).emit('applyFriendEdit', sh)
@@ -1018,7 +1257,7 @@ module.exports = {
               groupAdmins.forEach((adminuser) => {
                 const adminusername = adminuser.user.username
 
-                const targetSocketId = userSocketMap[adminusername]
+                const targetSocketId = userSocketMap[adminusername].id
 
                 // 新建通知消息到数据库
                 strapi.entityService.create('api::message.message', {
@@ -1126,7 +1365,7 @@ module.exports = {
           // io.to(socket.id).emit('applyGroupEdit', entry)
 
           // 发送给请求方
-          // const targetSocketId = userSocketMap[entry.user.username]
+          // const targetSocketId = userSocketMap[entry.user.username].id
           // io.to(targetSocketId).emit('applyGroupEdit', entry)
 
         }
@@ -1207,7 +1446,7 @@ module.exports = {
           }
         });
 
-        const targetSocketId = userSocketMap[user.username]
+        const targetSocketId = userSocketMap[user.username].id
         io.to(targetSocketId).emit('friendnotif', data)
       }
       // 获取群通知
@@ -1303,7 +1542,7 @@ module.exports = {
         });
 
         // 发送给特定
-        const targetSocketId = userSocketMap[user.username]
+        const targetSocketId = userSocketMap[user.username].id
         io.to(targetSocketId).emit('groupnotif', {
           data: data11,
         })
@@ -1315,7 +1554,7 @@ module.exports = {
       socket.on('sendPublicKey', ({ publicKey2, targetUser }) => {
         if (socket.user) {
           // console.log(publicKey2, targetUser)
-          const targetSocketId = userSocketMap[targetUser.username]
+          const targetSocketId = userSocketMap[targetUser.username]?.id
           io.to(targetSocketId).emit('publicKey', { publicKey2, user: socket.user })
         }
       })
@@ -1324,7 +1563,7 @@ module.exports = {
       socket.on('publicKeyAndSYmmetricKey', ({ publicKey2, symmetricKey, targetUser }) => {
         if (socket.user) {
           // console.log(publicKey2, symmetricKey, '12311')
-          const targetSocketId = userSocketMap[targetUser.username]
+          const targetSocketId = userSocketMap[targetUser.username].id
           io.to(targetSocketId).emit('publicAndSYmmetricKey', { publicKey2: publicKey2, symmetricKey, user: socket.user })
         }
       })
@@ -1380,8 +1619,8 @@ module.exports = {
           }))
 
           // console.log(friends, '1222')
-          for(let i =0; i< friends.length; i++) {
-            const group_members =  await strapi.entityService.create("api::group-member.group-member", {
+          for (let i = 0; i < friends.length; i++) {
+            const group_members = await strapi.entityService.create("api::group-member.group-member", {
               data: friends[i],
             });
 
@@ -1391,6 +1630,55 @@ module.exports = {
           await getUsers(socket.user)
         }
 
+      })
+
+      // 删除好友
+      socket.on('removeFriend', async (data) => {
+        if (socket.user) {
+
+          const { friendshipId, usergroupmemberId } = data
+
+          await strapi.entityService.update('api::friendship.friendship', friendshipId, {
+            data: {
+              status: 'delete',
+              operator: socket.user.id
+            },
+          }).then(res => {
+            if (res) {
+              // 删除user-group-memeber
+              strapi.entityService.delete('api::user-group-member.user-group-member', usergroupmemberId).then(res2 => {
+                if (res2) {
+                  console.log('完成', res)
+                  io.to(socket.id).emit('removeFriendReturn', {
+                    staus: 'success',
+                    msg: '删除成功'
+                  })
+                }
+              }).catch(err => {
+                console.log('失败', err)
+
+                strapi.entityService.update('api::friendship.friendship', friendshipId, {
+                  data: {
+                    status: 'accepted',
+                    operator: socket.user.id
+                  },
+                })
+
+                io.to(socket.id).emit('removeFriendReturn', {
+                  staus: 'fail',
+                  msg: '删除失败'
+                })
+              })
+            }
+          }).catch(err => {
+            console.log('失败', err)
+            io.to(socket.id).emit('removeFriendReturn', {
+              staus: 'fail',
+              msg: '删除失败'
+            })
+          })
+
+        }
       })
 
     });

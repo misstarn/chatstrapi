@@ -14,7 +14,7 @@
       "name": "Apache 2.0",
       "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
     },
-    "x-generation-date": "2023-10-12T09:29:55.429Z"
+    "x-generation-date": "2023-10-15T15:20:09.755Z"
   },
   "x-strapi-config": {
     "path": "/documentation",
@@ -2072,7 +2072,8 @@
                 "enum": [
                   "pending",
                   "accepted",
-                  "rejected"
+                  "rejected",
+                  "delete"
                 ]
               },
               "messages": {
@@ -3087,7 +3088,8 @@
                                       "enum": [
                                         "pending",
                                         "accepted",
-                                        "rejected"
+                                        "rejected",
+                                        "delete"
                                       ]
                                     },
                                     "messages": {
@@ -3458,7 +3460,8 @@
                                                                 "enum": [
                                                                   "pending",
                                                                   "accepted",
-                                                                  "rejected"
+                                                                  "rejected",
+                                                                  "delete"
                                                                 ]
                                                               },
                                                               "role": {
@@ -3521,6 +3524,9 @@
                                                                     }
                                                                   }
                                                                 }
+                                                              },
+                                                              "offlineMessages": {
+                                                                "type": "integer"
                                                               },
                                                               "createdAt": {
                                                                 "type": "string",
@@ -4082,7 +4088,8 @@
             "enum": [
               "pending",
               "accepted",
-              "rejected"
+              "rejected",
+              "delete"
             ]
           },
           "messages": {
@@ -5272,7 +5279,8 @@
                                       "enum": [
                                         "pending",
                                         "accepted",
-                                        "rejected"
+                                        "rejected",
+                                        "delete"
                                       ]
                                     },
                                     "messages": {
@@ -5643,7 +5651,8 @@
                                                                 "enum": [
                                                                   "pending",
                                                                   "accepted",
-                                                                  "rejected"
+                                                                  "rejected",
+                                                                  "delete"
                                                                 ]
                                                               },
                                                               "role": {
@@ -5706,6 +5715,9 @@
                                                                     }
                                                                   }
                                                                 }
+                                                              },
+                                                              "offlineMessages": {
+                                                                "type": "integer"
                                                               },
                                                               "createdAt": {
                                                                 "type": "string",
@@ -6532,7 +6544,8 @@
                 "enum": [
                   "pending",
                   "accepted",
-                  "rejected"
+                  "rejected",
+                  "delete"
                 ]
               },
               "role": {
@@ -6577,6 +6590,9 @@
                   }
                 ],
                 "example": "string or id"
+              },
+              "offlineMessages": {
+                "type": "integer"
               }
             }
           }
@@ -7555,7 +7571,8 @@
                                                   "enum": [
                                                     "pending",
                                                     "accepted",
-                                                    "rejected"
+                                                    "rejected",
+                                                    "delete"
                                                   ]
                                                 },
                                                 "messages": {
@@ -7675,7 +7692,8 @@
                                                                             "enum": [
                                                                               "pending",
                                                                               "accepted",
-                                                                              "rejected"
+                                                                              "rejected",
+                                                                              "delete"
                                                                             ]
                                                                           },
                                                                           "role": {
@@ -7738,6 +7756,9 @@
                                                                                 }
                                                                               }
                                                                             }
+                                                                          },
+                                                                          "offlineMessages": {
+                                                                            "type": "integer"
                                                                           },
                                                                           "createdAt": {
                                                                             "type": "string",
@@ -8532,7 +8553,8 @@
             "enum": [
               "pending",
               "accepted",
-              "rejected"
+              "rejected",
+              "delete"
             ]
           },
           "role": {
@@ -8595,6 +8617,9 @@
                 }
               }
             }
+          },
+          "offlineMessages": {
+            "type": "integer"
           },
           "createdAt": {
             "type": "string",
@@ -9751,7 +9776,8 @@
                                       "enum": [
                                         "pending",
                                         "accepted",
-                                        "rejected"
+                                        "rejected",
+                                        "delete"
                                       ]
                                     },
                                     "messages": {
@@ -10122,7 +10148,8 @@
                                                                 "enum": [
                                                                   "pending",
                                                                   "accepted",
-                                                                  "rejected"
+                                                                  "rejected",
+                                                                  "delete"
                                                                 ]
                                                               },
                                                               "role": {
@@ -10185,6 +10212,9 @@
                                                                     }
                                                                   }
                                                                 }
+                                                              },
+                                                              "offlineMessages": {
+                                                                "type": "integer"
                                                               },
                                                               "createdAt": {
                                                                 "type": "string",
@@ -11449,7 +11479,8 @@
                                       "enum": [
                                         "pending",
                                         "accepted",
-                                        "rejected"
+                                        "rejected",
+                                        "delete"
                                       ]
                                     },
                                     "messages": {
@@ -11820,7 +11851,8 @@
                                                                 "enum": [
                                                                   "pending",
                                                                   "accepted",
-                                                                  "rejected"
+                                                                  "rejected",
+                                                                  "delete"
                                                                 ]
                                                               },
                                                               "role": {
@@ -11883,6 +11915,9 @@
                                                                     }
                                                                   }
                                                                 }
+                                                              },
+                                                              "offlineMessages": {
+                                                                "type": "integer"
                                                               },
                                                               "createdAt": {
                                                                 "type": "string",
@@ -14308,7 +14343,8 @@
                                       "enum": [
                                         "pending",
                                         "accepted",
-                                        "rejected"
+                                        "rejected",
+                                        "delete"
                                       ]
                                     },
                                     "messages": {
@@ -14679,7 +14715,8 @@
                                                                 "enum": [
                                                                   "pending",
                                                                   "accepted",
-                                                                  "rejected"
+                                                                  "rejected",
+                                                                  "delete"
                                                                 ]
                                                               },
                                                               "role": {
@@ -14742,6 +14779,9 @@
                                                                     }
                                                                   }
                                                                 }
+                                                              },
+                                                              "offlineMessages": {
+                                                                "type": "integer"
                                                               },
                                                               "createdAt": {
                                                                 "type": "string",
@@ -16408,7 +16448,8 @@
                                                   "enum": [
                                                     "pending",
                                                     "accepted",
-                                                    "rejected"
+                                                    "rejected",
+                                                    "delete"
                                                   ]
                                                 },
                                                 "messages": {
@@ -16779,7 +16820,8 @@
                                                                             "enum": [
                                                                               "pending",
                                                                               "accepted",
-                                                                              "rejected"
+                                                                              "rejected",
+                                                                              "delete"
                                                                             ]
                                                                           },
                                                                           "role": {
@@ -16842,6 +16884,9 @@
                                                                                 }
                                                                               }
                                                                             }
+                                                                          },
+                                                                          "offlineMessages": {
+                                                                            "type": "integer"
                                                                           },
                                                                           "createdAt": {
                                                                             "type": "string",
