@@ -100,7 +100,7 @@ module.exports = {
             receiver: {
               id: receiver.id
             },
-            isRead: false
+            isRead: false,
           }
         })
 
@@ -596,7 +596,8 @@ module.exports = {
               receiver: {
                 id: currentUser.id
               },
-              isRead: false
+              isRead: false,
+              type: ['image', 'message']
             },
             sort: {
               createdAt: 'DESC',
@@ -891,10 +892,13 @@ module.exports = {
               })
 
               // 给对方发
-              const targetSocketId = userSocketMap[targetUser.username].id
-              io.to(targetSocketId).emit('userApply', {
-                user: socket.user, friendship: friendship, me: false, menu: false, message: res
-              })
+              const targetSocket = userSocketMap[targetUser.username]
+              const targetSocketId = targetSocket?.id
+              if (targetSocketId) {
+                io.to(targetSocketId).emit('userApply', {
+                  user: socket.user, friendship: friendship, me: false, menu: false, message: res
+                })
+              }
             })
 
           } else { //如果没有，创建新的关系
@@ -906,7 +910,8 @@ module.exports = {
             });
             // console.log(entry)
             if (entry) {
-              const targetSocketId = userSocketMap[targetUser.username].id
+              const targetSocket = userSocketMap[targetUser.username]
+              const targetSocketId = targetSocket?.id
               // 创建好友组关系
               await strapi.entityService.create('api::user-group-member.user-group-member', {
                 data: {
@@ -1086,7 +1091,8 @@ module.exports = {
 
             }
 
-            // const targetSocketId = userSocketMap[targetUser.username].id
+            // const targetSocket = userSocketMap[targetUser.username]
+            // const targetSocketId = targetSocket?.id
 
             // io.to(socket.id).emit('applyFriendEdit', sh)
             // io.to(targetSocketId).emit('applyFriendEdit', sh)
@@ -1257,7 +1263,8 @@ module.exports = {
               groupAdmins.forEach((adminuser) => {
                 const adminusername = adminuser.user.username
 
-                const targetSocketId = userSocketMap[adminusername].id
+                const targetSocket = userSocketMap[adminusername]
+                const targetSocketId = targetSocket?.id
 
                 // 新建通知消息到数据库
                 strapi.entityService.create('api::message.message', {
@@ -1309,12 +1316,15 @@ module.exports = {
                   },
                 }).then(res => {
                   // 发送给管理员
-                  socket.to(targetSocketId).emit('groupApply', {
-                    message: res,
-                    me: false,
-                    menu: false,
-                    groupMember: gm
-                  })
+                  if (targetSocketId) {
+                    socket.to(targetSocketId).emit('groupApply', {
+                      message: res,
+                      me: false,
+                      menu: false,
+                      groupMember: gm
+                    })
+
+                  }
                 })
               })
 
@@ -1554,8 +1564,11 @@ module.exports = {
       socket.on('sendPublicKey', ({ publicKey2, targetUser }) => {
         if (socket.user) {
           // console.log(publicKey2, targetUser)
-          const targetSocketId = userSocketMap[targetUser.username]?.id
-          io.to(targetSocketId).emit('publicKey', { publicKey2, user: socket.user })
+          const targetSocket = userSocketMap[targetUser.username]
+          const targetSocketId = targetSocket?.id
+          if (targetSocketId) {
+            io.to(targetSocketId).emit('publicKey', { publicKey2, user: socket.user })
+          }
         }
       })
 
@@ -1563,8 +1576,11 @@ module.exports = {
       socket.on('publicKeyAndSYmmetricKey', ({ publicKey2, symmetricKey, targetUser }) => {
         if (socket.user) {
           // console.log(publicKey2, symmetricKey, '12311')
-          const targetSocketId = userSocketMap[targetUser.username].id
-          io.to(targetSocketId).emit('publicAndSYmmetricKey', { publicKey2: publicKey2, symmetricKey, user: socket.user })
+          const targetSocket = userSocketMap[targetUser.username]
+          const targetSocketId = targetSocket?.id
+          if (targetSocketId) {
+            io.to(targetSocketId).emit('publicAndSYmmetricKey', { publicKey2: publicKey2, symmetricKey, user: socket.user })
+          }
         }
       })
 
@@ -1632,6 +1648,33 @@ module.exports = {
 
       })
 
+      // 离开群聊
+      socket.on('leaveGroup', async (data) => {
+        if (socket.user) {
+          const { group_member } = data
+          await strapi.entityService.update('api::group-member.group-member', group_member, {
+            data: {
+              status: 'delete',
+            },
+          }).then(res => {
+            if (res) {
+              console.log('完成', res)
+              io.to(socket.id).emit('removeReturn', {
+                status: 'success',
+                msg: '操作成功'
+              })
+            }
+          }).catch(err => {
+            console.log("错误", err)
+            io.to(socket.id).emit('removeReturn', {
+              status: 'fail',
+              msg: '操作失败'
+            })
+          })
+
+        }
+      })
+
       // 删除好友
       socket.on('removeFriend', async (data) => {
         if (socket.user) {
@@ -1649,9 +1692,9 @@ module.exports = {
               strapi.entityService.delete('api::user-group-member.user-group-member', usergroupmemberId).then(res2 => {
                 if (res2) {
                   console.log('完成', res)
-                  io.to(socket.id).emit('removeFriendReturn', {
-                    staus: 'success',
-                    msg: '删除成功'
+                  io.to(socket.id).emit('removeReturn', {
+                    status: 'success',
+                    msg: '操作成功'
                   })
                 }
               }).catch(err => {
@@ -1664,17 +1707,17 @@ module.exports = {
                   },
                 })
 
-                io.to(socket.id).emit('removeFriendReturn', {
-                  staus: 'fail',
-                  msg: '删除失败'
+                io.to(socket.id).emit('removeReturn', {
+                  status: 'fail',
+                  msg: '操作失败'
                 })
               })
             }
           }).catch(err => {
             console.log('失败', err)
-            io.to(socket.id).emit('removeFriendReturn', {
-              staus: 'fail',
-              msg: '删除失败'
+            io.to(socket.id).emit('removeReturn', {
+              status: 'fail',
+              msg: '操作失败'
             })
           })
 
